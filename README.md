@@ -28,8 +28,18 @@ See `docs/debugger-notes.md` for usage and safety notes.
 ## Build
 
 ```sh
+./tools/build_dependencies.sh
+```
+
+It will run below commands by Linux Distribution.
+
+```sh
 sudo dnf install libdrm-devel clang llvm vulkan-tools mesa-vulkan-drivers vulkan-headers vulkan-loader-devel
 make
+```
+
+```sh
+sudo pacman --sync libdrm clang llvm vulkan-tools mesa vulkan-headers vulkan-devel
 ```
 
 This has been tested locally on:
