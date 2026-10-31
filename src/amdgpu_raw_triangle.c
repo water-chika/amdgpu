@@ -186,9 +186,9 @@ static void build_pm4(pm4 *p, const bo *vs, const bo *ps, const bo *out, const b
   bool color_target = mode == RAW_MODE_COLOR_TARGET;
   bool ps_enabled = ps_store_only || color_target;
   push(p, PKT3(PKT3_CONTEXT_CONTROL, 1, 0)); push(p, 0x80000000); push(p, 0x80000000);
-  push(p, PKT3(PKT3_CLEAR_STATE, 0, 0)); push(p, 0);
+  //push(p, PKT3(PKT3_CLEAR_STATE, 0, 0)); push(p, 0);
   push(p, PKT3(PKT3_ACQUIRE_MEM, 5, 0));
-  push(p, 0x28c40000); push(p, 0xffffffff); push(p, 0x00ffffff); push(p, 0); push(p, 0); push(p, 10);
+  push(p, 0x28c40000); push(p, 0xffffffff); push(p, 0x00ffffff); push(p, 0); push(p, 0); push(p, 10); push(p, 0);
 
   set_context(p, 0x81, 0x00000000); /* PA_SC_WINDOW_SCISSOR_TL */
   set_context(p, 0x82, 0x01000100); /* PA_SC_WINDOW_SCISSOR_BR */

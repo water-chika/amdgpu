@@ -2,6 +2,7 @@
 
 #include "../src/common.h"
 
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -194,6 +195,171 @@ static words make_vertex_spirv(void) {
   return w;
 }
 
+static words make_procedural_vertex_spirv(void) {
+  enum {
+    id_void = 1,
+    id_fn_type,
+    id_float,
+    id_int,
+    id_bool,
+    id_v4,
+    id_ptr_input_int,
+    id_ptr_output_v4,
+    id_vertex_index,
+    id_position,
+    id_int_zero,
+    id_int_one,
+    id_float_zero,
+    id_float_one,
+    id_float_pos,
+    id_float_neg,
+    id_main,
+    id_label,
+    id_index,
+    id_is_zero,
+    id_is_one,
+    id_x_nonzero,
+    id_x,
+    id_y,
+    id_out_pos,
+    id_bound,
+  };
+  words w = {0};
+  spirv_header(&w, id_bound);
+
+  inst(&w, 17, 2); /* OpCapability Shader */
+  wpush(&w, 1);
+  inst(&w, 14, 3); /* OpMemoryModel Logical GLSL450 */
+  wpush(&w, 0);
+  wpush(&w, 1);
+  inst(&w, 15, 7); /* OpEntryPoint Vertex %main "main" %vertex_index %position */
+  wpush(&w, 0);
+  wpush(&w, id_main);
+  string_words(&w, "main");
+  wpush(&w, id_vertex_index);
+  wpush(&w, id_position);
+  inst(&w, 71, 4); /* OpDecorate %vertex_index BuiltIn VertexIndex */
+  wpush(&w, id_vertex_index);
+  wpush(&w, 11);
+  wpush(&w, 42);
+  inst(&w, 71, 4); /* OpDecorate %position BuiltIn Position */
+  wpush(&w, id_position);
+  wpush(&w, 11);
+  wpush(&w, 0);
+
+  inst(&w, 19, 2); /* OpTypeVoid */
+  wpush(&w, id_void);
+  inst(&w, 33, 3); /* OpTypeFunction */
+  wpush(&w, id_fn_type);
+  wpush(&w, id_void);
+  inst(&w, 22, 3); /* OpTypeFloat 32 */
+  wpush(&w, id_float);
+  wpush(&w, 32);
+  inst(&w, 21, 4); /* OpTypeInt 32 signed */
+  wpush(&w, id_int);
+  wpush(&w, 32);
+  wpush(&w, 1);
+  inst(&w, 20, 2); /* OpTypeBool */
+  wpush(&w, id_bool);
+  inst(&w, 23, 4); /* OpTypeVector float 4 */
+  wpush(&w, id_v4);
+  wpush(&w, id_float);
+  wpush(&w, 4);
+  inst(&w, 32, 4); /* OpTypePointer Input int */
+  wpush(&w, id_ptr_input_int);
+  wpush(&w, 1);
+  wpush(&w, id_int);
+  inst(&w, 32, 4); /* OpTypePointer Output v4 */
+  wpush(&w, id_ptr_output_v4);
+  wpush(&w, 3);
+  wpush(&w, id_v4);
+  inst(&w, 43, 4); /* OpConstant int 0 */
+  wpush(&w, id_int);
+  wpush(&w, id_int_zero);
+  wpush(&w, 0);
+  inst(&w, 43, 4); /* OpConstant int 1 */
+  wpush(&w, id_int);
+  wpush(&w, id_int_one);
+  wpush(&w, 1);
+  inst(&w, 43, 4); /* OpConstant float 0 */
+  wpush(&w, id_float);
+  wpush(&w, id_float_zero);
+  wpush(&w, 0x00000000);
+  inst(&w, 43, 4); /* OpConstant float 1 */
+  wpush(&w, id_float);
+  wpush(&w, id_float_one);
+  wpush(&w, 0x3f800000);
+  inst(&w, 43, 4); /* OpConstant float 0.75 */
+  wpush(&w, id_float);
+  wpush(&w, id_float_pos);
+  wpush(&w, 0x3f400000);
+  inst(&w, 43, 4); /* OpConstant float -0.75 */
+  wpush(&w, id_float);
+  wpush(&w, id_float_neg);
+  wpush(&w, 0xbf400000);
+  inst(&w, 59, 4); /* OpVariable Input */
+  wpush(&w, id_ptr_input_int);
+  wpush(&w, id_vertex_index);
+  wpush(&w, 1);
+  inst(&w, 59, 4); /* OpVariable Output */
+  wpush(&w, id_ptr_output_v4);
+  wpush(&w, id_position);
+  wpush(&w, 3);
+
+  inst(&w, 54, 5); /* OpFunction */
+  wpush(&w, id_void);
+  wpush(&w, id_main);
+  wpush(&w, 0);
+  wpush(&w, id_fn_type);
+  inst(&w, 248, 2); /* OpLabel */
+  wpush(&w, id_label);
+  inst(&w, 61, 4); /* OpLoad int %vertex_index */
+  wpush(&w, id_int);
+  wpush(&w, id_index);
+  wpush(&w, id_vertex_index);
+  inst(&w, 170, 5); /* OpIEqual index, 0 */
+  wpush(&w, id_bool);
+  wpush(&w, id_is_zero);
+  wpush(&w, id_index);
+  wpush(&w, id_int_zero);
+  inst(&w, 170, 5); /* OpIEqual index, 1 */
+  wpush(&w, id_bool);
+  wpush(&w, id_is_one);
+  wpush(&w, id_index);
+  wpush(&w, id_int_one);
+  inst(&w, 169, 6); /* OpSelect index == 1 ? 0.75 : -0.75 */
+  wpush(&w, id_float);
+  wpush(&w, id_x_nonzero);
+  wpush(&w, id_is_one);
+  wpush(&w, id_float_pos);
+  wpush(&w, id_float_neg);
+  inst(&w, 169, 6); /* OpSelect index == 0 ? 0 : x_nonzero */
+  wpush(&w, id_float);
+  wpush(&w, id_x);
+  wpush(&w, id_is_zero);
+  wpush(&w, id_float_zero);
+  wpush(&w, id_x_nonzero);
+  inst(&w, 169, 6); /* OpSelect index == 0 ? -0.75 : 0.75 */
+  wpush(&w, id_float);
+  wpush(&w, id_y);
+  wpush(&w, id_is_zero);
+  wpush(&w, id_float_neg);
+  wpush(&w, id_float_pos);
+  inst(&w, 80, 7); /* OpCompositeConstruct vec4(x, y, 0, 1) */
+  wpush(&w, id_v4);
+  wpush(&w, id_out_pos);
+  wpush(&w, id_x);
+  wpush(&w, id_y);
+  wpush(&w, id_float_zero);
+  wpush(&w, id_float_one);
+  inst(&w, 62, 3); /* OpStore %position %out_pos */
+  wpush(&w, id_position);
+  wpush(&w, id_out_pos);
+  inst(&w, 253, 1); /* OpReturn */
+  inst(&w, 56, 1);  /* OpFunctionEnd */
+  return w;
+}
+
 static words make_fragment_spirv(void) {
   enum {
     id_void = 1,
@@ -333,6 +499,11 @@ static image create_color_image(VkPhysicalDevice physical, VkDevice device, bool
 
   VkMemoryRequirements req;
   vkGetImageMemoryRequirements(device, img.image, &req);
+  if (linear) {
+    printf("image memory requirements: size=%" PRIu64 " alignment=%" PRIu64
+           " memoryTypeBits=0x%08x\n",
+           (uint64_t)req.size, (uint64_t)req.alignment, req.memoryTypeBits);
+  }
   VkMemoryAllocateInfo ai = {
     .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
     .allocationSize = req.size,
@@ -340,6 +511,19 @@ static image create_color_image(VkPhysicalDevice physical, VkDevice device, bool
   };
   vk_check(vkAllocateMemory(device, &ai, NULL, &img.memory), "vkAllocateMemory(image)");
   vk_check(vkBindImageMemory(device, img.image, img.memory, 0), "vkBindImageMemory");
+  if (linear) {
+    VkImageSubresource subresource = {
+      .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+      .mipLevel = 0,
+      .arrayLayer = 0,
+    };
+    VkSubresourceLayout layout;
+    vkGetImageSubresourceLayout(device, img.image, &subresource, &layout);
+    printf("image subresource layout: offset=%" PRIu64 " size=%" PRIu64
+           " rowPitch=%" PRIu64 " arrayPitch=%" PRIu64 " depthPitch=%" PRIu64 "\n",
+           (uint64_t)layout.offset, (uint64_t)layout.size, (uint64_t)layout.rowPitch,
+           (uint64_t)layout.arrayPitch, (uint64_t)layout.depthPitch);
+  }
 
   VkImageViewCreateInfo vi = {
     .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -377,6 +561,8 @@ static void write_ppm(const char *path, const u8 *rgba) {
 
 int main(void) {
   bool linear_image = getenv("RADV_TRIANGLE_LINEAR") != NULL;
+  bool procedural = getenv("RADV_TRIANGLE_PROCEDURAL") != NULL;
+  bool no_clear = getenv("RADV_TRIANGLE_NO_CLEAR") != NULL;
   VkInstance instance;
   VkApplicationInfo app = {
     .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -449,12 +635,17 @@ int main(void) {
      0.75f, 0.75f,
     -0.75f, 0.75f,
   };
-  buffer vertex = create_buffer(physical, device, sizeof(vertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-  void *mapped = NULL;
-  vk_check(vkMapMemory(device, vertex.memory, 0, sizeof(vertices), 0, &mapped), "vkMapMemory(vertex)");
-  memcpy(mapped, vertices, sizeof(vertices));
-  vkUnmapMemory(device, vertex.memory);
+  buffer vertex = {0};
+  if (!procedural) {
+    vertex = create_buffer(physical, device, sizeof(vertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                           VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    void *mapped = NULL;
+    vk_check(vkMapMemory(device, vertex.memory, 0, sizeof(vertices), 0, &mapped),
+             "vkMapMemory(vertex)");
+    memcpy(mapped, vertices, sizeof(vertices));
+    vkUnmapMemory(device, vertex.memory);
+  }
 
   image color = create_color_image(physical, device, linear_image);
   buffer readback = create_buffer(physical, device, WIDTH * HEIGHT * 4,
@@ -464,7 +655,7 @@ int main(void) {
   VkAttachmentDescription attachment = {
     .format = VK_FORMAT_R8G8B8A8_UNORM,
     .samples = VK_SAMPLE_COUNT_1_BIT,
-    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+    .loadOp = no_clear ? VK_ATTACHMENT_LOAD_OP_DONT_CARE : VK_ATTACHMENT_LOAD_OP_CLEAR,
     .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
     .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
     .finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -500,7 +691,7 @@ int main(void) {
   VkFramebuffer framebuffer;
   vk_check(vkCreateFramebuffer(device, &fbci, NULL, &framebuffer), "vkCreateFramebuffer");
 
-  words vs_words = make_vertex_spirv();
+  words vs_words = procedural ? make_procedural_vertex_spirv() : make_vertex_spirv();
   words fs_words = make_fragment_spirv();
   VkShaderModule vs = create_shader(device, &vs_words);
   VkShaderModule fs = create_shader(device, &fs_words);
@@ -528,10 +719,10 @@ int main(void) {
   };
   VkPipelineVertexInputStateCreateInfo vis = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-    .vertexBindingDescriptionCount = 1,
-    .pVertexBindingDescriptions = &binding,
-    .vertexAttributeDescriptionCount = 1,
-    .pVertexAttributeDescriptions = &attr,
+    .vertexBindingDescriptionCount = procedural ? 0 : 1,
+    .pVertexBindingDescriptions = procedural ? NULL : &binding,
+    .vertexAttributeDescriptionCount = procedural ? 0 : 1,
+    .pVertexAttributeDescriptions = procedural ? NULL : &attr,
   };
   VkPipelineInputAssemblyStateCreateInfo ia = {
     .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -607,13 +798,15 @@ int main(void) {
     .renderPass = render_pass,
     .framebuffer = framebuffer,
     .renderArea = {.extent = {WIDTH, HEIGHT}},
-    .clearValueCount = 1,
-    .pClearValues = &clear,
+    .clearValueCount = no_clear ? 0 : 1,
+    .pClearValues = no_clear ? NULL : &clear,
   };
   vkCmdBeginRenderPass(cmd, &rpbi, VK_SUBPASS_CONTENTS_INLINE);
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-  VkDeviceSize offset = 0;
-  vkCmdBindVertexBuffers(cmd, 0, 1, &vertex.buffer, &offset);
+  if (!procedural) {
+    VkDeviceSize offset = 0;
+    vkCmdBindVertexBuffers(cmd, 0, 1, &vertex.buffer, &offset);
+  }
   vkCmdDraw(cmd, 3, 1, 0, 0);
   vkCmdEndRenderPass(cmd);
 
@@ -653,8 +846,10 @@ int main(void) {
   vkFreeMemory(device, color.memory, NULL);
   vkDestroyBuffer(device, readback.buffer, NULL);
   vkFreeMemory(device, readback.memory, NULL);
-  vkDestroyBuffer(device, vertex.buffer, NULL);
-  vkFreeMemory(device, vertex.memory, NULL);
+  if (!procedural) {
+    vkDestroyBuffer(device, vertex.buffer, NULL);
+    vkFreeMemory(device, vertex.memory, NULL);
+  }
   vkDestroyDevice(device, NULL);
   vkDestroyInstance(instance, NULL);
   return 0;

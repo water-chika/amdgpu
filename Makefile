@@ -9,10 +9,13 @@ LDLIBS += $(shell pkg-config --libs libdrm libdrm_amdgpu 2>/dev/null)
 LDLIBS += -ldrm_amdgpu -ldrm
 
 BINS := $(BUILD_DIR)/amdgpu-poc $(BUILD_DIR)/amdgpu-regs2 $(BUILD_DIR)/amdgpu-gfx-pm4 $(BUILD_DIR)/amdgpu-raw-triangle $(BUILD_DIR)/radv-triangle
+GFX1201_BIN := $(BUILD_DIR)/amdgpu-raw-triangle-gfx1201
 
-.PHONY: all clean install shaders
+.PHONY: all clean install install-gfx1201 shaders gfx1201
 
 all: $(BINS)
+
+gfx1201: $(GFX1201_BIN)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -28,6 +31,9 @@ $(BUILD_DIR)/amdgpu-gfx-pm4: src/amdgpu_gfx_pm4.c src/common.h | $(BUILD_DIR)
 
 $(BUILD_DIR)/amdgpu-raw-triangle: src/amdgpu_raw_triangle.c src/common.h | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ src/amdgpu_raw_triangle.c $(LDLIBS)
+
+$(BUILD_DIR)/amdgpu-raw-triangle-gfx1201: src/amdgpu_raw_triangle_gfx1201.c src/common.h $(BUILD_DIR)/gfx12-raw-triangle-ngg.bin $(BUILD_DIR)/gfx12-raw-triangle-ps.bin | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ src/amdgpu_raw_triangle_gfx1201.c $(LDLIBS)
 
 $(BUILD_DIR)/radv-triangle: examples/radv_triangle.c src/common.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ examples/radv_triangle.c -lvulkan
@@ -76,12 +82,23 @@ $(BUILD_DIR)/gfx-ps-store.bin: shaders/gfx-ps-store.s tools/extract-text.sh | $(
 $(BUILD_DIR)/gfx-ps-store-only.bin: shaders/gfx-ps-store-only.s tools/extract-text.sh | $(BUILD_DIR)
 	sh tools/extract-text.sh shaders/gfx-ps-store-only.s $@
 
+$(BUILD_DIR)/gfx12-raw-triangle-ngg.bin: shaders/gfx12/raw-triangle-ngg.s tools/extract-text.sh | $(BUILD_DIR)
+	AMDGPU_MCPU=gfx1201 sh tools/extract-text.sh shaders/gfx12/raw-triangle-ngg.s $@
+
+$(BUILD_DIR)/gfx12-raw-triangle-ps.bin: shaders/gfx12/raw-triangle-ps.s tools/extract-text.sh | $(BUILD_DIR)
+	AMDGPU_MCPU=gfx1201 sh tools/extract-text.sh shaders/gfx12/raw-triangle-ps.s $@
+
 $(BUILD_DIR)/trap-test.bin: shaders/trap-test.s tools/extract-text.sh | $(BUILD_DIR)
 	sh tools/extract-text.sh shaders/trap-test.s $@
 
 install: all
 	install -d $(DESTDIR)$(PREFIX)/bin
 	install -m 755 $(BINS) $(DESTDIR)$(PREFIX)/bin
+
+install-gfx1201: gfx1201
+	install -d $(DESTDIR)$(PREFIX)/bin
+	install -m 755 $(GFX1201_BIN) $(DESTDIR)$(PREFIX)/bin
+	install -m 644 $(BUILD_DIR)/gfx12-raw-triangle-ngg.bin $(BUILD_DIR)/gfx12-raw-triangle-ps.bin $(DESTDIR)$(PREFIX)/bin
 
 clean:
 	rm -rf $(BUILD_DIR)

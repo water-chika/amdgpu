@@ -14,12 +14,17 @@ trap-handler debugger approach described in `thegeeko.md`.
   writes `triangle.ppm`.
 - `build/amdgpu-gfx-pm4`: loads text PM4 dwords and can submit them to the GFX
   ring for replay experiments.
-- `build/amdgpu-raw-triangle`: experimental raw GFX PM4 triangle draw. Current
-  status: the default path launches VS and writes `0x76543210`; `--ps-store-only`
-  launches PS and writes `0xfeed1234`; `--color-target` renders a red triangle
-  into a linear VRAM color target. Important: `PA_CL_VTE_CNTL = 0x0000003f`
-  enables viewport transform; without it, the triangle collapses to the `(0,0)`
-  area.
+- `build/amdgpu-raw-triangle`: experimental Renoir/GFX9 raw GFX PM4 triangle
+  draw. The default path launches VS and writes `0x76543210`;
+  `--ps-store-only` launches PS and writes `0xfeed1234`; `--color-target` is an
+  opt-in linear color-target experiment that has rendered the expected triangle
+  but remains labeled unstable by the executable. Important:
+  `PA_CL_VTE_CNTL = 0x0000003f` enables viewport transform; without it, the
+  triangle collapses to the `(0,0)` area.
+- `build/amdgpu-raw-triangle-gfx1201`: RX 9070 XT / GFX1201 raw NGG triangle.
+  It programs application-owned GE rings and a linear color target, submits
+  `DRAW_INDEX_AUTO`, and reads the rendered image back through SDMA. The verified
+  result is a red triangle with 18,432 pixels and bounding box `32,33..223,223`.
 - `tools/extract-text.sh`: compiles GCN assembly and extracts raw `.text` bytes.
 - `shaders/`: no-op, trap-test, and a GFX11 trap-handler assembly sketch.
 
@@ -27,19 +32,23 @@ See `docs/debugger-notes.md` for usage and safety notes.
 
 ## Build
 
+The dependency helper is a Bash script without a shebang, so invoke it explicitly:
+
 ```sh
-./tools/build_dependencies.sh
+bash ./tools/build_dependecies.sh
 ```
 
-It will run below commands by Linux Distribution.
+It installs the distribution packages represented by these commands; build in a
+separate step afterward:
 
 ```sh
+# Fedora
 sudo dnf install libdrm-devel clang llvm vulkan-tools mesa-vulkan-drivers vulkan-headers vulkan-loader-devel
-make
-```
 
-```sh
+# Arch Linux (vulkan-devel is a package group and may prompt for members)
 sudo pacman --sync libdrm clang llvm vulkan-tools mesa vulkan-headers vulkan-devel
+
+make
 ```
 
 This has been tested locally on:
@@ -156,7 +165,18 @@ This uses RADV through the normal Vulkan loader path. It is useful as the known
 good reference before reverse-engineering the GFX PM4 packets for a direct
 `libdrm_amdgpu` triangle.
 
-See `docs/raw-gfx-triangle.md` for the raw GFX PM4 capture/replay workflow.
+See `docs/raw-gfx-triangle.md` for the raw GFX1201 reconstruction tutorial,
+including clean capture caveats and the separate Renoir/GFX9 path.
+
+### GFX1201 raw triangle
+
+The opt-in `make gfx1201` target requires LLVM 18 or newer. Bring up the RX 9070
+XT path in order with `--stage info`, `--stage rings`, then `--stage draw`.
+It uses a merged NGG ES/GS shader, application-owned GE rings, a linear color
+target, GFX12 PWS synchronization, and SDMA readback. The verified image has
+18,432 red pixels with bounding box `32,33..223,223`; see the
+[full GFX1201 raw-triangle tutorial](docs/raw-gfx-triangle.md) for exact build,
+PM4, register, shader, validation, and debugging details.
 
 ## RX570 eGPU (`examples_egpu/`)
 
