@@ -1,0 +1,45 @@
+#version 460
+#extension GL_EXT_ray_query : require
+
+layout(local_size_x = 1) in;
+layout(set = 0, binding = 0) uniform accelerationStructureEXT scene;
+layout(set = 0, binding = 1, std430) buffer Results { uint word[]; } results;
+
+void main()
+{
+    const uint i = gl_GlobalInvocationID.x;
+    vec3 origin;
+    if (i == 0)
+        origin = vec3(0.0, 0.0, 1.0);
+    else if (i == 1)
+        origin = vec3(-0.5, -0.5, 2.0);
+    else
+        origin = vec3(2.0, 2.0, 1.0);
+
+    rayQueryEXT q;
+    rayQueryInitializeEXT(q, scene, gl_RayFlagsOpaqueEXT, 0xff,
+                          origin, 0.0, vec3(0.0, 0.0, -1.0), 10.0);
+    while (rayQueryProceedEXT(q)) {}
+
+    const uint base = i * 8;
+    const bool hit = rayQueryGetIntersectionTypeEXT(q, true) != gl_RayQueryCommittedIntersectionNoneEXT;
+    results.word[base + 0] = hit ? 1u : 0u;
+    if (hit) {
+        vec2 bary = rayQueryGetIntersectionBarycentricsEXT(q, true);
+        results.word[base + 1] = floatBitsToUint(rayQueryGetIntersectionTEXT(q, true));
+        results.word[base + 2] = floatBitsToUint(bary.x);
+        results.word[base + 3] = floatBitsToUint(bary.y);
+        results.word[base + 4] = rayQueryGetIntersectionInstanceCustomIndexEXT(q, true);
+        results.word[base + 5] = rayQueryGetIntersectionPrimitiveIndexEXT(q, true);
+        results.word[base + 6] = rayQueryGetIntersectionGeometryIndexEXT(q, true);
+        results.word[base + 7] = rayQueryGetIntersectionInstanceIdEXT(q, true);
+    } else {
+        results.word[base + 1] = 0xffffffffu;
+        results.word[base + 2] = 0xffffffffu;
+        results.word[base + 3] = 0xffffffffu;
+        results.word[base + 4] = 0xffffffffu;
+        results.word[base + 5] = 0xffffffffu;
+        results.word[base + 6] = 0xffffffffu;
+        results.word[base + 7] = 0xffffffffu;
+    }
+}

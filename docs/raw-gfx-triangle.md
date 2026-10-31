@@ -172,7 +172,9 @@ UCONFIG absolute byte address = 0x30000 + 4 * offset
 ```
 
 `ucfg_idx(0x10000242, 4)` intentionally retains index/control bits in the first
-payload while its low register offset identifies `VGT_PRIMITIVE_TYPE`.
+payload while its low register offset identifies `VGT_PRIMITIVE_TYPE`. See
+[`SET_UCONFIG_REG` versus `SET_UCONFIG_REG_INDEX`](pm4-uconfig-index.md) for the
+packet layouts, selector semantics, and full decode.
 
 ### 4.2 Address fields
 
@@ -417,7 +419,9 @@ section-3 capture before changing or auditing them.
 ## 9. Synchronization, fences, and SDMA
 
 GFX12 `ACQUIRE_MEM` and `RELEASE_MEM` use a header count of six and seven
-payload dwords. Do not confuse the two different `ACQUIRE_MEM` layouts:
+payload dwords. For the event-counter model, fields, frontend ordering, and
+cache distinction, see [`GFX12 Pipeline Wait Sync`](pm4-pws.md). Do not confuse
+the two different `ACQUIRE_MEM` layouts:
 
 ```text
 plain cache acquire (Mesa ac_emit_cp_acquire_mem):

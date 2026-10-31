@@ -12,6 +12,9 @@ trap-handler debugger approach described in `thegeeko.md`.
   debugfs `regs2` interface with SRBM/GRBM banking controls.
 - `build/radv-triangle`: draws an offscreen triangle through Vulkan/RADV and
   writes `triangle.ppm`.
+- `build/radv-ray-query`: builds a one-triangle BLAS/TLAS through Vulkan/RADV,
+  traces three deterministic inline ray queries, and verifies two exact hits
+  plus one miss on RX 9070 XT/GFX1201.
 - `build/amdgpu-gfx-pm4`: loads text PM4 dwords and can submit them to the GFX
   ring for replay experiments.
 - `build/amdgpu-raw-triangle`: experimental Renoir/GFX9 raw GFX PM4 triangle
@@ -25,10 +28,19 @@ trap-handler debugger approach described in `thegeeko.md`.
   It programs application-owned GE rings and a linear color target, submits
   `DRAW_INDEX_AUTO`, and reads the rendered image back through SDMA. The verified
   result is a red triangle with 18,432 pixels and bounding box `32,33..223,223`.
+- `build/amdgpu-raw-ray-query-gfx1201`: opt-in RX 9070 XT / GFX1201 raw compute
+  probe for one `image_bvh8_intersect_ray` box-node instruction. It uses a
+  source-defined 128-byte node derived from a captured one-child RADV BLAS root;
+  it does not build or traverse a complete acceleration structure.
 - `tools/extract-text.sh`: compiles GCN assembly and extracts raw `.text` bytes.
 - `shaders/`: no-op, trap-test, and a GFX11 trap-handler assembly sketch.
 
-See `docs/debugger-notes.md` for usage and safety notes.
+See `docs/debugger-notes.md` for usage and safety notes. For the public GFX12
+ray-tracing architecture, BVH8 format, instructions, compiler flow, and build
+path, see [`docs/gfx12-ray-tracing.md`](docs/gfx12-ray-tracing.md). The
+[`GFX12 ray-query sample and raw probe`](docs/gfx12-ray-query-sample.md) records
+the standalone Vulkan procedure and results, capture commands, observed ISA and
+compute state, and the staged raw box-instruction probe.
 
 ## Build
 
@@ -131,6 +143,47 @@ Additional PM4 compute shader smoke tests:
 | `multi-thread-addtid.bin` | `--shader build/multi-thread-addtid.bin --pass-output-va --threads-x 8 --output-bytes 64` | `00 00 11 11 01 00 11 11 ... 07 00 11 11` |
 | `branch-select.bin` | `--shader build/branch-select.bin --pass-output-va --output-bytes 16` | `aa aa aa aa` |
 | `atomic-add.bin` | `--shader build/atomic-add.bin --pass-output-va --threads-x 8 --output-bytes 16` | `08 00 00 00` |
+
+## GFX12 RADV Ray Query
+
+Build and run the standalone Phase 1/2 validation sample:
+
+```sh
+make radv-ray-query
+build/radv-ray-query
+```
+
+On the verified RX 9070 XT/GFX1201 path it returns two exact triangle hits and
+one miss. RADV shader capture confirms `image_bvh8_intersect_ray`, dedicated
+`s_wait_bvhcnt`, and `ds_bvh_stack_push8_pop1_rtn_b32` in the application
+compute shader. Captures remain external to this source-only repository; see
+[`docs/gfx12-ray-query-sample.md`](docs/gfx12-ray-query-sample.md) for the exact
+results, encodings, PM4 state, capture commands, and evidence limits.
+
+### GFX1201 raw box-instruction probe
+
+The completed raw probe is intentionally opt-in and requires LLVM 18 or newer:
+
+```sh
+make raw-ray-query-gfx1201
+build/amdgpu-raw-ray-query-gfx1201 --stage info
+build/amdgpu-raw-ray-query-gfx1201 --stage shader
+build/amdgpu-raw-ray-query-gfx1201 --stage box
+```
+
+The stages identify the required Navi48 device, smoke-test raw shader execution
+and SDMA readback, then issue one BVH8 box instruction against a source-defined
+copy of the captured one-child BLAS root. The verified box output was eight zero
+child-result words, two further zero result words, and returned origin/direction
+words `0,0,0,1,1,1`, followed by completion magic. This is only the observed
+result for that captured one-child node: it does not establish that child ID zero
+is a general null value. The exact result repeated 50/50 times.
+
+This probe does not yet cover a primitive node, traversal, or a full ray-tracing
+query/pipeline, and result components 8-9 are recorded but not semantically
+asserted. Source, ABI, provenance, and limitations are documented in
+[`docs/gfx12-ray-query-sample.md`](docs/gfx12-ray-query-sample.md). Generated
+capture logs remain outside this source-only repository.
 
 ## RADV Triangle
 

@@ -10,12 +10,17 @@ LDLIBS += -ldrm_amdgpu -ldrm
 
 BINS := $(BUILD_DIR)/amdgpu-poc $(BUILD_DIR)/amdgpu-regs2 $(BUILD_DIR)/amdgpu-gfx-pm4 $(BUILD_DIR)/amdgpu-raw-triangle $(BUILD_DIR)/radv-triangle
 GFX1201_BIN := $(BUILD_DIR)/amdgpu-raw-triangle-gfx1201
+RAW_RAY_QUERY_GFX1201_BIN := $(BUILD_DIR)/amdgpu-raw-ray-query-gfx1201
 
-.PHONY: all clean install install-gfx1201 shaders gfx1201
+.PHONY: all clean install install-gfx1201 install-radv-ray-query install-raw-ray-query-gfx1201 shaders gfx1201 raw-ray-query-gfx1201 radv-ray-query
 
 all: $(BINS)
 
 gfx1201: $(GFX1201_BIN)
+
+raw-ray-query-gfx1201: $(RAW_RAY_QUERY_GFX1201_BIN)
+
+radv-ray-query: $(BUILD_DIR)/radv-ray-query $(BUILD_DIR)/radv-ray-query.comp.spv
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -35,8 +40,23 @@ $(BUILD_DIR)/amdgpu-raw-triangle: src/amdgpu_raw_triangle.c src/common.h | $(BUI
 $(BUILD_DIR)/amdgpu-raw-triangle-gfx1201: src/amdgpu_raw_triangle_gfx1201.c src/common.h $(BUILD_DIR)/gfx12-raw-triangle-ngg.bin $(BUILD_DIR)/gfx12-raw-triangle-ps.bin | $(BUILD_DIR)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ src/amdgpu_raw_triangle_gfx1201.c $(LDLIBS)
 
+$(BUILD_DIR)/amdgpu-raw-ray-query-gfx1201: src/amdgpu_raw_ray_query_gfx1201.c src/common.h $(BUILD_DIR)/gfx12-raw-ray-query-box.bin | $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ src/amdgpu_raw_ray_query_gfx1201.c $(LDLIBS)
+
 $(BUILD_DIR)/radv-triangle: examples/radv_triangle.c src/common.h | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ examples/radv_triangle.c -lvulkan
+
+$(BUILD_DIR)/radv-ray-query: examples/radv_ray_query.c src/common.h | $(BUILD_DIR)
+	$(CC) $(CFLAGS) -o $@ examples/radv_ray_query.c -lvulkan
+
+$(BUILD_DIR)/radv-ray-query.comp.spv: examples/radv_ray_query.comp | $(BUILD_DIR)
+	@if command -v glslangValidator >/dev/null 2>&1; then \
+		glslangValidator -V --target-env vulkan1.2 -S comp -o $@ $<; \
+	elif command -v glslc >/dev/null 2>&1; then \
+		glslc --target-env=vulkan1.2 -fshader-stage=compute -o $@ $<; \
+	else \
+		echo "error: glslangValidator or glslc is required" >&2; exit 1; \
+	fi
 
 shaders: $(BUILD_DIR)/nop.bin $(BUILD_DIR)/store-output.bin $(BUILD_DIR)/add-output.bin $(BUILD_DIR)/mul-output.bin $(BUILD_DIR)/sub-output.bin $(BUILD_DIR)/and-or-xor-output.bin $(BUILD_DIR)/shl-shr-output.bin $(BUILD_DIR)/load-add-store.bin $(BUILD_DIR)/multi-thread-addtid.bin $(BUILD_DIR)/branch-select.bin $(BUILD_DIR)/atomic-add.bin $(BUILD_DIR)/gfx-vs.bin $(BUILD_DIR)/gfx-ps-store.bin $(BUILD_DIR)/gfx-ps-store-only.bin $(BUILD_DIR)/trap-test.bin
 
@@ -88,6 +108,9 @@ $(BUILD_DIR)/gfx12-raw-triangle-ngg.bin: shaders/gfx12/raw-triangle-ngg.s tools/
 $(BUILD_DIR)/gfx12-raw-triangle-ps.bin: shaders/gfx12/raw-triangle-ps.s tools/extract-text.sh | $(BUILD_DIR)
 	AMDGPU_MCPU=gfx1201 sh tools/extract-text.sh shaders/gfx12/raw-triangle-ps.s $@
 
+$(BUILD_DIR)/gfx12-raw-ray-query-box.bin: shaders/gfx12/raw-ray-query-box.s tools/extract-text.sh | $(BUILD_DIR)
+	AMDGPU_MCPU=gfx1201 sh tools/extract-text.sh shaders/gfx12/raw-ray-query-box.s $@
+
 $(BUILD_DIR)/trap-test.bin: shaders/trap-test.s tools/extract-text.sh | $(BUILD_DIR)
 	sh tools/extract-text.sh shaders/trap-test.s $@
 
@@ -99,6 +122,16 @@ install-gfx1201: gfx1201
 	install -d $(DESTDIR)$(PREFIX)/bin
 	install -m 755 $(GFX1201_BIN) $(DESTDIR)$(PREFIX)/bin
 	install -m 644 $(BUILD_DIR)/gfx12-raw-triangle-ngg.bin $(BUILD_DIR)/gfx12-raw-triangle-ps.bin $(DESTDIR)$(PREFIX)/bin
+
+install-radv-ray-query: radv-ray-query
+	install -d $(DESTDIR)$(PREFIX)/bin
+	install -m 755 $(BUILD_DIR)/radv-ray-query $(DESTDIR)$(PREFIX)/bin
+	install -m 644 $(BUILD_DIR)/radv-ray-query.comp.spv $(DESTDIR)$(PREFIX)/bin
+
+install-raw-ray-query-gfx1201: raw-ray-query-gfx1201
+	install -d $(DESTDIR)$(PREFIX)/bin
+	install -m 755 $(RAW_RAY_QUERY_GFX1201_BIN) $(DESTDIR)$(PREFIX)/bin
+	install -m 644 $(BUILD_DIR)/gfx12-raw-ray-query-box.bin $(DESTDIR)$(PREFIX)/bin
 
 clean:
 	rm -rf $(BUILD_DIR)
